@@ -15,20 +15,23 @@ const color_mapping = require('../assets/color_mapping.json');
 const options = yargs
     .usage("Usage: -i <image path> -t <theme type>")
     .option("i", { alias: "image_path", describe: "Path to image file", type: "string", demandOption: true })
+    .option("c", { alias: "color", describe: "Theme color", type: "string", demandOption: false })
     .option("t", { alias: "type", describe: "Specify theme type (dark|light)", type: "string", demandOption: true })
+    .option("o", {alias: "output", describe: "Output file", type: "string", demandOption: false})
     .argv;
 
 const abs_image_path = resolve(options.image_path);
 const dir = 'file:///' + path.dirname(abs_image_path) + '/';
 const filename = path.basename(abs_image_path);
 const theme_type = options.type;
+const color_theme = options.color;
+const output = options.output;
 const html = '<!DOCTYPE html><img id="wallpaper" src="' + filename + '"/>';
 
 let base_preset = base_presets.light;
 if (theme_type.toUpperCase().includes("DARK")) {
     base_preset = base_presets.dark;
 }
-
 const dom_options = {
     resources: 'usable',
     url: dir
@@ -39,9 +42,12 @@ const dom = new JSDOM(html, dom_options);
 let image = dom.window.document.getElementById('wallpaper');
 
 global.document = dom.window.document;
-const color = sourceColorFromImage(image);
 
+const color = sourceColorFromImage(image);
 color.then(function(result) {
+    if (color_theme != "") {
+      result = parseInt(color_theme, 16);
+    }
     // Get the theme from a hex color
     const theme = themeFromSourceColor(result);
     let scheme = theme.schemes.light.props;
@@ -57,8 +63,15 @@ color.then(function(result) {
     let preset = schemeToPreset(scheme, base_preset, color_mapping);
     preset.name = theme_name;
     let preset_json = JSON.stringify(preset, null, 2);
-
-    fs.writeFile(path.dirname(abs_image_path) + '/' + theme_name + '.json', preset_json, (err) => {
+    
+    
+    var outputfile;
+    if (!output) {
+      outputfile = path.dirname(abs_image_path) + '/' + theme_name + '.json';
+    } else {
+      outputfile = output;
+    }
+    fs.writeFile(outputfile ,preset_json, (err) => {
         if (err) {
             throw err;
         }
